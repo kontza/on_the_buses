@@ -1,13 +1,10 @@
 package org.kontza.on_the_buses.infrastructure.adapters.rest;
 
-import org.kontza.on_the_buses.infrastructure.adapters.model.NotifyEvent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.ApplicationContext;
+import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -16,23 +13,20 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("notify")
+@Slf4j
 public class NotifierController {
-    private static final Logger logger = LoggerFactory.getLogger(NotifierController.class);
+    public static final String STREAM_OUT = "notifyStream-out-0";
+    private StreamBridge streamBridge;
 
-    private String busId;
-    private ApplicationContext applicationContext;
-
-    public NotifierController(@Value("${spring.cloud.bus.id}") String busId, ApplicationContext applicationContext) {
-        this.busId = busId;
-        this.applicationContext = applicationContext;
+    public NotifierController(StreamBridge streamBridge) {
+        this.streamBridge = streamBridge;
     }
 
     @GetMapping()
     public ResponseEntity<String> notifier(@RequestParam Optional<String> message) {
-        logger.info("Bus ID = {}", busId);
-        final var event = new NotifyEvent(this, busId, message.orElse("TRIGGERED!"));
-        logger.info("Event = {}", event);
-        applicationContext.publishEvent(event);
+        var payload = message.orElse("TRIGGERED!");
+        log.info(">>> Calling notifyListener with '{}'", payload);
+        streamBridge.send(STREAM_OUT, payload);
         return ResponseEntity.ok("OK");
     }
 }

@@ -2,4 +2,4 @@
 GET http://192.168.61.10:4110/actuator/health
 
 ### Trigger notify
-GET http://192.168.61.10:4110/notify
+GET http://192.168.61.10:4110/notify?message=trial_of_the_grasses
