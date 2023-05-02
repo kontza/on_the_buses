@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: on-the-buses
+  cloud:
+    consul:
+      discovery:
+        health-check-path: ${management.endpoints.web.basePath}/health
+        query-passing: true
+        health-check-critical-timeout: 60s
