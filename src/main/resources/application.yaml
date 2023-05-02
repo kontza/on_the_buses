@@ -4,8 +4,5 @@ spring:
   application:
     name: on-the-buses
   cloud:
-    consul:
-      discovery:
-        query-passing: true
-        health-check-critical-timeout: 60s
-        prefer-ip-address: true
+    bus:
+      enabled: true
