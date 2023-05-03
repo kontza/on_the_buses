@@ -1,5 +1,5 @@
 ### Get health
-GET http://192.168.61.10:4110/actuator/health
+GET http://localhost:4110/actuator/health
 
 ### Trigger notify
-GET http://192.168.61.10:4110/notify?message=trial_of_the_grasses
+GET http://localhost:4110/notify?message=trial_of_the_grasses

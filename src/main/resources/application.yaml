@@ -4,8 +4,6 @@ spring:
   application:
     name: on-the-buses
   cloud:
-    function:
-      definition: notifyListener
     stream:
       bindings:
         notifyStream-out-0:
@@ -14,11 +12,12 @@ spring:
           destination: notifications
 logging:
   level:
-    root: debug
-#    org:
-#      springframework:
-#        cloud:
-#          consul: trace
+    org:
+      springframework:
+        cloud:
+          consul:
+            binder: trace
+            discovery: info
 #    com:
 #      ecwid:
 #        consul: trace

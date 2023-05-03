@@ -11,7 +11,6 @@ import java.util.function.Consumer;
 public class NotifyListenerConfiguration {
     @Bean
     public Consumer<Object> notifyListener() {
-        log.info(">>> notifyListener preflight");
         return msg -> log.info(">>> notifyListener Consumed {}", msg);
     }
 }
