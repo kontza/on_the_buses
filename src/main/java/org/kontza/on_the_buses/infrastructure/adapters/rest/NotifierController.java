@@ -5,6 +5,8 @@ import org.kontza.on_the_buses.infrastructure.adapters.model.LightEvent;
 import org.springframework.cloud.stream.function.StreamBridge;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.Message;
+import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -19,7 +21,6 @@ public class NotifierController {
     public static final String STREAM_OUT = "notifyStream-out-0";
     public static final String DEFAULT_MESSAGE = "TRIGGERED!";
     private StreamBridge streamBridge;
-//    private ApplicationJsonMessageMarshallingConverter converter;
 
     public NotifierController(StreamBridge streamBridge) {
         this.streamBridge = streamBridge;
@@ -29,7 +30,8 @@ public class NotifierController {
     public ResponseEntity<String> notifier(@RequestParam Optional<String> message) {
         var pojo = new LightEvent(message.orElse(DEFAULT_MESSAGE));
         log.info(">>> Calling notifyListener with '{}'", pojo);
-        streamBridge.send(STREAM_OUT, pojo, MediaType.APPLICATION_JSON);
+        Message<LightEvent> payload = MessageBuilder.withPayload(pojo).build();
+        streamBridge.send(STREAM_OUT, payload, MediaType.APPLICATION_JSON);
         return ResponseEntity.ok("OK");
     }
 }
