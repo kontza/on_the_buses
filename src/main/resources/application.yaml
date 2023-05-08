@@ -3,11 +3,3 @@ server:
 spring:
   application:
     name: on-the-buses
-logging:
-  level:
-    org:
-      springframework:
-        cloud:
-          consul:
-            binder: trace
-            discovery: info

@@ -9,5 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class LightEvent {
     private String eventSource;
-    private String command;
+    private String reason;
+    private Long meetingId;
+    private String userId;
 }
