@@ -16,6 +16,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -24,6 +27,7 @@ import java.util.Optional;
 public class NotifierController {
     public static final String DEFAULT_MESSAGE = "TRIGGERED!";
     public static final String S_AMACCOUNT_NAME = "v:AD_DOMAIN\\sAMAccountName";
+    private static final Long DEFAULT_TIMEOUT = 1000l;
     private EventSourceConfiguration eventSourceConfiguration;
     private DiscoveryClient discoveryClient;
     @Value("${spring.application.name}")
@@ -52,7 +56,8 @@ public class NotifierController {
     }
 
     @GetMapping()
-    public ResponseEntity<String> notifier(@RequestParam Optional<String> message) {
+    public ResponseEntity<String> notifier(@RequestParam Optional<String> message, @RequestParam Optional<Long> timeout) {
+        log.info(">>> Using a timeout value of {}", timeout.orElse(DEFAULT_TIMEOUT));
         var le = new LightEvent(
             eventSourceConfiguration.getEventSource(),
             message.orElse(DEFAULT_MESSAGE),
@@ -60,10 +65,10 @@ public class NotifierController {
             S_AMACCOUNT_NAME
         );
         var instances = discoveryClient.getInstances(appName);
-        var r1 = notify(String.valueOf(instances.get(0).getUri()), le);
-        var r2 = notify(String.valueOf(instances.get(1).getUri()), le);
+        List<Mono<String>> responses = new ArrayList<>();
+        instances.forEach(serviceInstance -> responses.add(notify(String.valueOf(serviceInstance.getUri()), le)));
         log.info(">>> Waiting...");
-        var merge = Flux.merge(r1, r2);
+        var merge = Flux.merge(responses).timeout(Duration.ofMillis(timeout.orElse(DEFAULT_TIMEOUT)));
         merge.doOnComplete(() -> log.info(">>> onComplete"))
             .doOnError(e -> log.error(">>> onError", e))
             .blockLast();
