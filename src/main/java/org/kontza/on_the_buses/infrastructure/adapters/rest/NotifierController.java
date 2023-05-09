@@ -2,8 +2,8 @@ package org.kontza.on_the_buses.infrastructure.adapters.rest;
 
 import lombok.extern.slf4j.Slf4j;
 import org.kontza.on_the_buses.infrastructure.adapters.model.LightEvent;
-import org.kontza.on_the_buses.infrastructure.configuration.EventSourceConfiguration;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -28,7 +28,6 @@ public class NotifierController {
     public static final String DEFAULT_MESSAGE = "TRIGGERED!";
     public static final String S_AMACCOUNT_NAME = "v:AD_DOMAIN\\sAMAccountName";
     private static final Long DEFAULT_TIMEOUT = 1000l;
-    private EventSourceConfiguration eventSourceConfiguration;
     private DiscoveryClient discoveryClient;
     @Value("${spring.application.name}")
     private String appName;
@@ -36,8 +35,7 @@ public class NotifierController {
     private int appPort;
     private WebClient webClient;
 
-    public NotifierController(EventSourceConfiguration eventSourceConfiguration, DiscoveryClient discoveryClient) {
-        this.eventSourceConfiguration = eventSourceConfiguration;
+    public NotifierController(DiscoveryClient discoveryClient) {
         this.discoveryClient = discoveryClient;
         webClient = WebClient
             .builder()
@@ -45,28 +43,34 @@ public class NotifierController {
             .build();
     }
 
-    private Mono<String> notify(String uri, LightEvent le) {
-        log.info(">>> Calling {}/listener with {}", uri, le);
+    private Mono<Void> notify(ServiceInstance serviceInstance, LightEvent le) {
+        log.info(">>> Calling {}/listener with {}", serviceInstance, le);
         return webClient
             .post()
-            .uri(uri + "/listener")
+            .uri(serviceInstance.getUri() + "/listener")
             .body(Mono.just(le), LightEvent.class)
             .retrieve()
-            .bodyToMono(String.class);
+            .bodyToMono(Void.class);
     }
 
     @GetMapping()
     public ResponseEntity<String> notifier(@RequestParam Optional<String> message, @RequestParam Optional<Long> timeout) {
         log.info(">>> Using a timeout value of {}", timeout.orElse(DEFAULT_TIMEOUT));
         var le = new LightEvent(
-            eventSourceConfiguration.getEventSource(),
             message.orElse(DEFAULT_MESSAGE),
             42l,
             S_AMACCOUNT_NAME
         );
         var instances = discoveryClient.getInstances(appName);
-        List<Mono<String>> responses = new ArrayList<>();
-        instances.forEach(serviceInstance -> responses.add(notify(String.valueOf(serviceInstance.getUri()), le)));
+        List<Mono<Void>> responses = new ArrayList<>();
+        var instanceId = String.format("%s-%d", appName, appPort);
+        instances.forEach(serviceInstance -> {
+            if (serviceInstance.getInstanceId().equals(instanceId)) {
+                log.info(">>> Not going to notify self.");
+            } else {
+                responses.add(notify(serviceInstance, le));
+            }
+        });
         log.info(">>> Waiting...");
         var merge = Flux.merge(responses).timeout(Duration.ofMillis(timeout.orElse(DEFAULT_TIMEOUT)));
         merge.doOnComplete(() -> log.info(">>> onComplete"))

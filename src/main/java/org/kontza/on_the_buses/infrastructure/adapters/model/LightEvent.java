@@ -8,7 +8,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LightEvent {
-    private String eventSource;
     private String reason;
     private Long meetingId;
     private String userId;
