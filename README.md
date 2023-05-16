@@ -22,3 +22,10 @@ This app contains my trials with Spring Cloud Consul Bus.
     ```sh
     $ http 'http://localhost:4110/notify?message=trial_of_the_grasses'
     ```
+1. Launch the front-end client:
+
+    ```sh
+    $ cd vue-client
+    $ npm install && npm run dev
+    ```
+1. Open your browser to http://localhost:4040 to use the front-end client.
