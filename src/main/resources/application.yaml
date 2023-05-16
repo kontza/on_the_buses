@@ -3,3 +3,6 @@ server:
 spring:
   application:
     name: on-the-buses
+
+on-the-buses:
+  sse-timeout: 5000
