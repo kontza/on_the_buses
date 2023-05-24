@@ -3,6 +3,8 @@ server:
 spring:
   application:
     name: on-the-buses
-
+  cloud:
+    consul:
+      enabled: true
 on-the-buses:
   sse-timeout: 5000
