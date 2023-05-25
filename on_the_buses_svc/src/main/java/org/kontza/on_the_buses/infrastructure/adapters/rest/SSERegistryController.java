@@ -24,7 +24,7 @@ public class SSERegistryController {
     public static final String EVENT_COMPLETE = "COMPLETE";
     public static final String OK = "OK";
     public static final long THREE_HOURS = 10800000l;
-    @Value("${on-the-buses.sse-timeout}")
+    @Value("${on-the-buses-svc.sse-timeout}")
     private long sseTimeout;
     private final Map<String, SseEmitter> clients = new HashMap<>();
     private final NotifierService notifierService;

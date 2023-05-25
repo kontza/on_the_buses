@@ -6,9 +6,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 @Slf4j
-public class OnTheBusesApplication {
+public class OnTheBusesSvcApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(OnTheBusesApplication.class, args);
+        SpringApplication.run(OnTheBusesSvcApplication.class, args);
     }
 }

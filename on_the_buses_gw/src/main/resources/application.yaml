@@ -1,0 +1,8 @@
+server:
+  port: 2110
+spring:
+  application:
+    name: on-the-buses-gw
+  cloud:
+    consul:
+      enabled: true

@@ -8,7 +8,7 @@
     <name>on-the-buses</name>
     <properties>
         <java.version>17</java.version>
-        <spring-cloud.version>2021.0.6</spring-cloud.version>
+        <spring-cloud.version>2021.0.7</spring-cloud.version>
     </properties>
     <parent>
         <groupId>org.springframework.boot</groupId>
@@ -18,6 +18,7 @@
         <!-- lookup parent from repository -->
     </parent>
     <modules>
-        <module>service</module>
+        <module>on_the_buses_gw</module>
+        <module>on_the_buses_svc</module>
     </modules>
 </project>

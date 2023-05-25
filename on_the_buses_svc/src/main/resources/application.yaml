@@ -2,9 +2,9 @@ server:
   port: 4110
 spring:
   application:
-    name: on-the-buses
+    name: on-the-buses-svc
   cloud:
     consul:
       enabled: true
-on-the-buses:
+on-the-buses-svc:
   sse-timeout: 5000
