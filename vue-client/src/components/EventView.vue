@@ -19,6 +19,7 @@ import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event
 class RetriableError extends Error {}
 class FatalError extends Error {}
 
+const API_BASE = '/api/sse'
 const logEvent = (message) => {
   const timestamp = new Date().toLocaleTimeString('fi', {
     hour: 'numeric',
@@ -55,7 +56,7 @@ const register = () => {
   logEvent('Registering...')
   state.retry = true
   if (mode.value === MS) {
-    fetchEventSource(`/api/register/?clientId=${state.clientId}`, {
+    fetchEventSource(`${API_BASE}/register/?clientId=${state.clientId}`, {
       openWhenHidden: true,
       async onopen(response) {
         if (response.ok && response.headers.get('content-type') === EventStreamContentType) {
@@ -115,7 +116,7 @@ const register = () => {
       }
     })
   } else {
-    let initialEs = new EventSourcePolyfill(`/api/register/?clientId=${state.clientId}`, {
+    let initialEs = new EventSourcePolyfill(`${API_BASE}/register/?clientId=${state.clientId}`, {
       heartbeatTimeout: 250000
     })
     let listener = (event) => {
@@ -159,13 +160,13 @@ const register = () => {
 }
 const send = () => {
   logEvent(`Sending '${state.reason}'...`)
-  fetch(`/api/update/?reason=${state.reason}`, { method: 'GET' })
+  fetch(`${API_BASE}/update/?reason=${state.reason}`, { method: 'GET' })
     .then(() => logEvent('... sent'))
     .catch((error) => logEvent('Update failed: ' + JSON.stringify(error)))
 }
 const unregister = () => {
   logEvent('Unregistering...')
-  fetch(`/api/unregister/?clientId=${state.clientId}`)
+  fetch(`${API_BASE}/unregister/?clientId=${state.clientId}`)
     .then(() => {
       state.retry = false
       logEvent('... done')
