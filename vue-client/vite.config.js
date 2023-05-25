@@ -10,9 +10,8 @@ export default defineConfig({
     port: 4040,
     proxy: {
       '/api/': {
-        target: 'http://localhost:4110/',
-        changeOrigin: true,
-        rewrite: (path) => path.replace('/api', '/sse')
+        target: 'http://localhost:2110/',
+        changeOrigin: true
       }
     }
   },
