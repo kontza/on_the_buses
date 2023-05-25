@@ -1,6 +1,7 @@
 package org.kontza.on_the_buses.infrastructure.adapters.rest;
 
 import lombok.extern.slf4j.Slf4j;
+import org.kontza.on_the_buses.domain.api.SSERegistryService;
 import org.kontza.on_the_buses.infrastructure.adapters.model.LightEvent;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,9 +14,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("listener")
 @Slf4j
 public class ListenerController {
+    private final SSERegistryService sseRegistryService;
+
+    public ListenerController(SSERegistryService sseRegistryService) {
+        this.sseRegistryService = sseRegistryService;
+    }
+
     @PostMapping()
     @ResponseStatus(HttpStatus.OK)
     public void listener(@RequestBody LightEvent le) {
         log.info(">>> Got a notification: {}", le);
+        sseRegistryService.update(le.getReason(), false);
     }
 }
