@@ -6,3 +6,18 @@ spring:
   cloud:
     consul:
       enabled: true
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+      routes:
+        - id: service_route
+          uri: lb://on-the-buses-svc
+          predicates:
+            - Path=/api/**
+          filters:
+            - RewritePath=/api/?(?<segment>.*), /$\{segment}
+logging:
+  level:
+    root: info
+    org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: debug
