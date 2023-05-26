@@ -17,6 +17,7 @@ spring:
             - Path=/api/**
           filters:
             - RewritePath=/api/?(?<segment>.*), /$\{segment}
+
 logging:
   level:
     root: info

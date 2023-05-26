@@ -2,13 +2,13 @@ package org.kontza.on_the_buses.infrastructure.adapters.services;
 
 import lombok.extern.slf4j.Slf4j;
 import org.kontza.on_the_buses.domain.api.NotifierService;
+import org.kontza.on_the_buses.infrastructure.adapters.model.HeartbeatPayload;
 import org.kontza.on_the_buses.infrastructure.adapters.model.LightEvent;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
+import org.springframework.cloud.client.serviceregistry.Registration;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
@@ -17,7 +17,10 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+
+import static org.kontza.on_the_buses.infrastructure.adapters.services.SSEHandlerServiceImpl.OK;
 
 @Component
 @Slf4j
@@ -25,15 +28,13 @@ public class NotifierServiceImpl implements NotifierService {
     public static final String DEFAULT_MESSAGE = "TRIGGERED!";
     public static final String S_AMACCOUNT_NAME = "v:AD_DOMAIN\\sAMAccountName";
     private static final Long DEFAULT_TIMEOUT = 1000l;
-    private DiscoveryClient discoveryClient;
-    @Value("${spring.application.name}")
-    private String appName;
-    @Value("${server.port}")
-    private int appPort;
+    private final DiscoveryClient discoveryClient;
+    private final Registration registration;
     private WebClient webClient;
 
-    public NotifierServiceImpl(DiscoveryClient discoveryClient) {
+    public NotifierServiceImpl(DiscoveryClient discoveryClient, Registration registration) {
         this.discoveryClient = discoveryClient;
+        this.registration = registration;
         webClient = WebClient
             .builder()
             .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -41,7 +42,7 @@ public class NotifierServiceImpl implements NotifierService {
     }
 
     private Mono<Void> notify(ServiceInstance serviceInstance, LightEvent le) {
-        log.info(">>> Calling {}/listener with {}", serviceInstance, le);
+        log.info(">>> Calling {}/listener with {}", serviceInstance.getInstanceId(), le);
         return webClient
             .post()
             .uri(serviceInstance.getUri() + "/listener")
@@ -50,29 +51,75 @@ public class NotifierServiceImpl implements NotifierService {
             .bodyToMono(Void.class);
     }
 
+    private Mono<Void> notify(ServiceInstance serviceInstance, HeartbeatPayload payload) {
+        log.info(">>> Calling {}/listener with {}", serviceInstance.getInstanceId(), payload);
+        return webClient
+            .post()
+            .uri(serviceInstance.getUri() + "/sse/heartbeat")
+            .body(Mono.just(payload), HeartbeatPayload.class)
+            .retrieve()
+            .bodyToMono(Void.class);
+    }
+
     @Override
-    public ResponseEntity<String> notifier(Optional<String> message, Optional<Long> timeout) {
-        log.info(">>> Using a timeout value of {}", timeout.orElse(DEFAULT_TIMEOUT));
+    public String notifier(String message, long timeout) {
+        if (timeout < 0) {
+            timeout = DEFAULT_TIMEOUT;
+        }
+        if (message == null) {
+            message = DEFAULT_MESSAGE;
+        }
+        log.info(">>> Using a timeout value of {}", timeout);
         var le = new LightEvent(
-            message.orElse(DEFAULT_MESSAGE),
+            message,
             42l,
             S_AMACCOUNT_NAME
         );
-        var instances = discoveryClient.getInstances(appName);
+        var instances = discoveryClient.getInstances(registration.getServiceId());
         List<Mono<Void>> responses = new ArrayList<>();
-        var instanceId = String.format("%s-%d", appName, appPort);
         instances.forEach(serviceInstance -> {
-            if (serviceInstance.getInstanceId().equals(instanceId)) {
+            if (serviceInstance.getInstanceId().equals(registration.getInstanceId())) {
                 log.info(">>> Not going to notify self.");
             } else {
                 responses.add(notify(serviceInstance, le));
             }
         });
         log.info(">>> Waiting...");
-        var merge = Flux.merge(responses).timeout(Duration.ofMillis(timeout.orElse(DEFAULT_TIMEOUT)));
-        merge.doOnComplete(() -> log.info(">>> onComplete"))
-            .doOnError(e -> log.error(">>> onError", e))
+        var merge = Flux.merge(responses).timeout(Duration.ofMillis(timeout));
+        merge.doOnComplete(() -> log.info(">>> notify call onComplete"))
+            .doOnError(e -> log.error(">>> notify call onError", e))
             .blockLast();
-        return ResponseEntity.ok("OK");
+        return OK;
+    }
+
+    @Override
+    public void heartbeat(HeartbeatPayload payload, long timeout) {
+        if (timeout < 0) {
+            timeout = DEFAULT_TIMEOUT;
+        }
+        var instances = discoveryClient.getInstances(registration.getServiceId());
+        List<Mono<Void>> responses = new ArrayList<>();
+        var targetInstances = instances
+            .stream()
+            .filter(instance -> instance
+                .getInstanceId()
+                .equals(payload
+                    .getInstanceId()))
+            .collect(Collectors.toList());
+        if (!targetInstances.isEmpty()) {
+            if (targetInstances.size() > 1) {
+                log.warn(">>> More than one service instance found! {}", targetInstances);
+            }
+            responses.add(notify(targetInstances.get(0), payload));
+        } else {
+            var msg = String.format("No target instance found for '%s'", payload.getInstanceId());
+            log.info(">>> {}", msg);
+            throw new NoSuchElementException(msg);
+        }
+        log.info(">>> Waiting...");
+        var merge = Flux.merge(responses).timeout(Duration.ofMillis(timeout));
+        merge.doOnComplete(() -> log.info(">>> heartbeat call onComplete"))
+            .doOnError(e -> log.error(">>> heartbeat call onError", e))
+            .blockLast();
     }
 }

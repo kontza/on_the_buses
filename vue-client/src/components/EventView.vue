@@ -15,11 +15,20 @@
 import { computed, ref, reactive, watch } from 'vue'
 import { EventSourcePolyfill } from 'event-source-polyfill'
 import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source'
+import { uniqueNamesGenerator, colors, adjectives, names } from 'unique-names-generator'
+
+const config = {
+  dictionaries: [adjectives, colors, names],
+  separator: ' ',
+  length: 3,
+  style: 'capital'
+}
 
 class RetriableError extends Error {}
 class FatalError extends Error {}
 
 const API_BASE = '/api/sse'
+const HEARTBEAT_PERIOD = 5000
 const logEvent = (message) => {
   const timestamp = new Date().toLocaleTimeString('fi', {
     hour: 'numeric',
@@ -32,8 +41,10 @@ const logEvent = (message) => {
 const state = reactive({
   reason: 'Senkin huithapeli!',
   eventArray: [],
-  clientId: import.meta.env.VITE_CLIENT_ID,
-  retry: true
+  clientId: uniqueNamesGenerator(config),
+  serviceInstanceId: '',
+  retry: true,
+  count: 1
 })
 logEvent('Welcome to the machine!')
 const events = computed(() => {
@@ -50,7 +61,25 @@ watch(
   { deep: true }
 )
 const MS = 'MS'
-const mode = ref(null)
+const mode = ref(MS)
+
+const sendHeartbeat = () => {
+  fetch(`${API_BASE}/heartbeat`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      clientId: state.clientId,
+      instanceId: state.serviceInstanceId
+    })
+  })
+    .catch((err) => {
+      logEvent('Heartbeat failed, re-register. Reason was: ' + JSON.stringify(err))
+      register()
+    })
+    .then(() => setTimeout(sendHeartbeat, HEARTBEAT_PERIOD))
+}
 
 const register = () => {
   logEvent('Registering...')
@@ -60,7 +89,6 @@ const register = () => {
       openWhenHidden: true,
       async onopen(response) {
         if (response.ok && response.headers.get('content-type') === EventStreamContentType) {
-          logEvent('Registered... ' + JSON.stringify(response))
           return // everything's good
         } else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
           // client-side errors are usually non-retriable:
@@ -80,7 +108,9 @@ const register = () => {
         } else {
           switch (msg.event) {
             case 'REGISTERED':
-              logEvent('Client registered')
+              logEvent(`Client registered to '${JSON.parse(msg.data).instanceId}'`)
+              state.serviceInstanceId = JSON.parse(msg.data).instanceId
+              setTimeout(sendHeartbeat, HEARTBEAT_PERIOD)
               break
             case 'UPDATE':
               logEvent('Update: ' + JSON.stringify(msg.data))
@@ -159,10 +189,13 @@ const register = () => {
   }
 }
 const send = () => {
-  logEvent(`Sending '${state.reason}'...`)
-  fetch(`${API_BASE}/update/?reason=${state.reason}`, { method: 'GET' })
+  const payload = `${state.count++} ${state.reason}`
+  logEvent(`Sending '${payload}'...`)
+  fetch(`${API_BASE}/update/?reason=${payload}`, { method: 'GET' })
     .then(() => logEvent('... sent'))
-    .catch((error) => logEvent('Update failed: ' + JSON.stringify(error)))
+    .catch((error) => {
+      logEvent('Update failed: ' + JSON.stringify(error))
+    })
 }
 const unregister = () => {
   logEvent('Unregistering...')
