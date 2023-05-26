@@ -10,4 +10,5 @@ import lombok.NoArgsConstructor;
 public class HeartbeatPayload {
     private String clientId;
     private String instanceId;
+    private boolean chair;
 }

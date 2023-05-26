@@ -4,8 +4,8 @@
     <textarea class="event-log col-span-3" rows="25" cols="80" readonly v-model="events"></textarea>
     <div class="empty-row col-span-3"></div>
     <input v-model="state.clientId" />
-    <button class="btn-primary" @click="register">Register to server</button>
-    <button class="btn-secondary" @click="unregister">Unregister from server</button>
+    <button class="btn-primary" @click="register">Join chat</button>
+    <button class="btn-secondary" @click="unregister">{{ state.leaveTitle }}</button>
     <div class="divider col-span-3">Event to send</div>
     <input v-model="state.reason" @keyup.enter="send" />
     <button class="btn-primary" @click="send">Send update to server</button>
@@ -15,14 +15,6 @@
 import { computed, ref, reactive, watch } from 'vue'
 import { EventSourcePolyfill } from 'event-source-polyfill'
 import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source'
-import { uniqueNamesGenerator, colors, adjectives, names } from 'unique-names-generator'
-
-const config = {
-  dictionaries: [adjectives, colors, names],
-  separator: ' ',
-  length: 3,
-  style: 'capital'
-}
 
 class RetriableError extends Error {}
 class FatalError extends Error {}
@@ -39,12 +31,13 @@ const logEvent = (message) => {
   state.eventArray.push(timestamp + ' ' + message)
 }
 const state = reactive({
-  reason: 'Senkin huithapeli!',
+  clientId: 'Chat member #',
+  count: 1,
   eventArray: [],
-  clientId: uniqueNamesGenerator(config),
-  serviceInstanceId: '',
+  leaveTitle: 'Leave chat',
+  reason: 'Senkin huithapeli!',
   retry: true,
-  count: 1
+  serviceInstanceId: ''
 })
 logEvent('Welcome to the machine!')
 const events = computed(() => {
@@ -61,24 +54,31 @@ watch(
   { deep: true }
 )
 const MS = 'MS'
-const mode = ref(MS)
+const PF = 'polyfill'
+const mode = ref(PF)
 
 const sendHeartbeat = () => {
-  fetch(`${API_BASE}/heartbeat`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json'
-    },
-    body: JSON.stringify({
-      clientId: state.clientId,
-      instanceId: state.serviceInstanceId
+  try {
+    fetch(`${API_BASE}/heartbeat`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        clientId: state.clientId,
+        instanceId: state.serviceInstanceId
+      })
     })
-  })
-    .catch((err) => {
-      logEvent('Heartbeat failed, re-register. Reason was: ' + JSON.stringify(err))
-      register()
-    })
-    .then(() => setTimeout(sendHeartbeat, HEARTBEAT_PERIOD))
+      .catch((err) => {
+        console.error('>>> Heartbeat failed, re-register. Reason was: ' + JSON.stringify(err))
+        logEvent('Heartbeat failed, re-register. Reason was: ' + JSON.stringify(err))
+        register()
+      })
+      .then(() => setTimeout(sendHeartbeat, HEARTBEAT_PERIOD))
+  } catch (error) {
+    console.error('>>> Total failure in update! ' + JSON.stringify(error))
+    logEvent('Total failure in update! ' + JSON.stringify(error))
+  }
 }
 
 const register = () => {
@@ -106,21 +106,23 @@ const register = () => {
           logEvent('Message error: ' + JSON.stringify(msg))
           throw new FatalError(msg.data)
         } else {
+          let payload = msg.data ? JSON.parse(msg.data) : 'N/A'
           switch (msg.event) {
             case 'REGISTERED':
-              logEvent(`Client registered to '${JSON.parse(msg.data).instanceId}'`)
-              state.serviceInstanceId = JSON.parse(msg.data).instanceId
+              logEvent(`Client registered to '${payload.instanceId}'`)
+              state.serviceInstanceId = payload.instanceId
+              state.leaveTitle = payload.chair ? 'End chat' : 'Leave chat'
               setTimeout(sendHeartbeat, HEARTBEAT_PERIOD)
               break
             case 'UPDATE':
-              logEvent('Update: ' + JSON.stringify(msg.data))
+              logEvent(`Update: ${payload}`)
               break
             case 'COMPLETE':
               logEvent('Completed')
               state.retry = false
               break
             default:
-              logEvent('Message: ' + JSON.stringify(msg))
+              logEvent('Message: ' + msg)
               break
           }
         }
@@ -147,7 +149,7 @@ const register = () => {
     })
   } else {
     let initialEs = new EventSourcePolyfill(`${API_BASE}/register/?clientId=${state.clientId}`, {
-      heartbeatTimeout: 250000
+      heartbeatTimeout: HEARTBEAT_PERIOD
     })
     let listener = (event) => {
       switch (event.type) {
@@ -176,8 +178,10 @@ const register = () => {
     initialEs.addEventListener('open', listener)
     initialEs.addEventListener('message', listener)
     initialEs.addEventListener('error', listener)
-    initialEs.addEventListener('REGISTERED', () => {
-      logEvent('Client registered')
+    initialEs.addEventListener('REGISTERED', (payload) => {
+      let parsed = JSON.parse(payload.data)
+      logEvent('Client registered ' + JSON.stringify(parsed))
+      state.serviceInstanceId = parsed.instanceId
     })
     initialEs.addEventListener('UPDATE', (payload) => {
       logEvent('Update: ' + JSON.stringify(payload.data))

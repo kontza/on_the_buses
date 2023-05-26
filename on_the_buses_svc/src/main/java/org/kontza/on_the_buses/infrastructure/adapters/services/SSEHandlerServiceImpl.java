@@ -52,12 +52,14 @@ public class SSEHandlerServiceImpl implements SSEHandlerService {
         if (clients.containsKey(clientId)) {
             clients.remove(clientId);
             retVal = true;
+            log.warn(">>> '{}' removed from clients", clientId);
         } else {
             log.warn(">>> '{}' not a registered client", clientId);
         }
         if (heartbeats.containsKey(clientId)) {
             heartbeats.remove(clientId);
             retVal = true;
+            log.warn(">>> '{}' removed from heartbeats", clientId);
         } else {
             log.warn(">>> '{}' does not have a heartbeat", clientId);
         }
@@ -108,6 +110,7 @@ public class SSEHandlerServiceImpl implements SSEHandlerService {
             log.info(">>> '{}' emitter completed", clientId);
             tryRemoveClient(clientId);
         });
+        var chair = clients.isEmpty();
         clients.put(clientId, emitter);
         heartbeats.put(clientId, ZonedDateTime.now());
         log.info(">>> Registered '{}'", clientId);
@@ -116,7 +119,7 @@ public class SSEHandlerServiceImpl implements SSEHandlerService {
                 .event()
                 .id(String.valueOf(System.currentTimeMillis()))
                 .name(EVENT_REGISTERED)
-                .data(new HeartbeatPayload(clientId, registration.getInstanceId())));
+                .data(new HeartbeatPayload(clientId, registration.getInstanceId(), chair)));
         } catch (IOException e) {
             log.error(">>> Failed to ACK registration for '{}'", clientId);
             throw e;
@@ -162,6 +165,7 @@ public class SSEHandlerServiceImpl implements SSEHandlerService {
     }
 
     private void handleHeartbeat(HeartbeatPayload payload) {
+        log.info(">>> payload = {}, clients = {}", payload, clients);
         if (clients.containsKey(payload.getClientId())) {
             log.info(">>> Updated '{}' hearbeat", payload.getClientId());
             heartbeats.put(payload.getClientId(), ZonedDateTime.now());
