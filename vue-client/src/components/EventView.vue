@@ -15,12 +15,19 @@
 import { computed, ref, reactive, watch } from 'vue'
 import { EventSourcePolyfill } from 'event-source-polyfill'
 import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source'
+import { uniqueNamesGenerator, colors, adjectives, names } from 'unique-names-generator'
+
+const config = {
+  dictionaries: [adjectives, colors, names],
+  separator: ' ',
+  length: 3,
+  style: 'capital'
+}
 
 class RetriableError extends Error {}
 class FatalError extends Error {}
 
 const API_BASE = '/api/sse'
-const HEARTBEAT_PERIOD = 5000
 const logEvent = (message) => {
   const timestamp = new Date().toLocaleTimeString('fi', {
     hour: 'numeric',
@@ -35,7 +42,7 @@ const state = reactive({
   count: 1,
   eventArray: [],
   leaveTitle: 'Leave chat',
-  reason: 'Senkin huithapeli!',
+  reason: uniqueNamesGenerator(config),
   retry: true,
   serviceInstanceId: ''
 })
@@ -56,30 +63,7 @@ watch(
 const MS = 'MS'
 const PF = 'polyfill'
 const mode = ref(PF)
-
-const sendHeartbeat = () => {
-  try {
-    fetch(`${API_BASE}/heartbeat`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({
-        clientId: state.clientId,
-        instanceId: state.serviceInstanceId
-      })
-    })
-      .catch((err) => {
-        console.error('>>> Heartbeat failed, re-register. Reason was: ' + JSON.stringify(err))
-        logEvent('Heartbeat failed, re-register. Reason was: ' + JSON.stringify(err))
-        register()
-      })
-      .then(() => setTimeout(sendHeartbeat, HEARTBEAT_PERIOD))
-  } catch (error) {
-    console.error('>>> Total failure in update! ' + JSON.stringify(error))
-    logEvent('Total failure in update! ' + JSON.stringify(error))
-  }
-}
+let initialEs = null
 
 const register = () => {
   logEvent('Registering...')
@@ -112,7 +96,6 @@ const register = () => {
               logEvent(`Client registered to '${payload.instanceId}'`)
               state.serviceInstanceId = payload.instanceId
               state.leaveTitle = payload.chair ? 'End chat' : 'Leave chat'
-              setTimeout(sendHeartbeat, HEARTBEAT_PERIOD)
               break
             case 'UPDATE':
               logEvent(`Update: ${payload}`)
@@ -148,9 +131,11 @@ const register = () => {
       }
     })
   } else {
-    let initialEs = new EventSourcePolyfill(`${API_BASE}/register/?clientId=${state.clientId}`, {
-      heartbeatTimeout: HEARTBEAT_PERIOD
-    })
+    if (initialEs) {
+      logEvent('Closing previous EventSource')
+      initialEs.close()
+    }
+    initialEs = new EventSourcePolyfill(`${API_BASE}/register/?clientId=${state.clientId}`)
     let listener = (event) => {
       switch (event.type) {
         case 'open':

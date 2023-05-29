@@ -2,12 +2,9 @@ package org.kontza.on_the_buses.infrastructure.adapters.rest;
 
 import lombok.extern.slf4j.Slf4j;
 import org.kontza.on_the_buses.domain.api.SSEHandlerService;
-import org.kontza.on_the_buses.infrastructure.adapters.model.HeartbeatPayload;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -39,12 +36,6 @@ public class SSEHandlerController {
     @GetMapping("/update")
     @ResponseStatus(HttpStatus.OK)
     public void update(@RequestParam final String reason) {
-        sseHandlerService.update(reason);
-    }
-
-    @PostMapping("/heartbeat")
-    @ResponseStatus(HttpStatus.OK)
-    public void heartbeat(@RequestBody final HeartbeatPayload payload) {
-        sseHandlerService.heartbeat(payload);
+        sseHandlerService.update(reason, true);
     }
 }
