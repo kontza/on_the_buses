@@ -16,8 +16,6 @@ import reactor.core.publisher.Mono;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
 
 import static org.kontza.on_the_buses.infrastructure.adapters.services.SSEHandlerServiceImpl.OK;
 
@@ -41,7 +39,7 @@ public class NotifierServiceImpl implements NotifierService {
     }
 
     private Mono<Void> notify(ServiceInstance serviceInstance, LightEvent le) {
-        log.info(">>> Calling {}/listener with {}", serviceInstance.getInstanceId(), le);
+        log.info(">>> Calling {}/listener with {}", serviceInstance.getUri(), le);
         return webClient
             .post()
             .uri(serviceInstance.getUri() + "/listener")
@@ -66,10 +64,13 @@ public class NotifierServiceImpl implements NotifierService {
         );
         var instances = discoveryClient.getInstances(registration.getServiceId());
         List<Mono<Void>> responses = new ArrayList<>();
+        log.info(">>> Self: {}", registration.getUri());
         instances.forEach(serviceInstance -> {
-            if (serviceInstance.getInstanceId().equals(registration.getInstanceId())) {
+            if ((serviceInstance.getHost().equals(registration.getHost()))
+                && (serviceInstance.getPort() == registration.getPort())) {
                 log.info(">>> Not going to notify self.");
             } else {
+                log.info(">>> Other: {}", serviceInstance.getUri());
                 responses.add(notify(serviceInstance, le));
             }
         });

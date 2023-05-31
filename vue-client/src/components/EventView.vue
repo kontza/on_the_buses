@@ -44,7 +44,6 @@ const state = reactive({
   leaveTitle: 'Leave chat',
   reason: uniqueNamesGenerator(config),
   retry: true,
-  serviceInstanceId: ''
 })
 logEvent('Welcome to the machine!')
 const events = computed(() => {
@@ -93,8 +92,7 @@ const register = () => {
           let payload = msg.data ? JSON.parse(msg.data) : 'N/A'
           switch (msg.event) {
             case 'REGISTERED':
-              logEvent(`Client registered to '${payload.instanceId}'`)
-              state.serviceInstanceId = payload.instanceId
+              logEvent(`Client registered`)
               state.leaveTitle = payload.chair ? 'End chat' : 'Leave chat'
               break
             case 'UPDATE':
@@ -166,7 +164,6 @@ const register = () => {
     initialEs.addEventListener('REGISTERED', (payload) => {
       let parsed = JSON.parse(payload.data)
       logEvent('Client registered ' + JSON.stringify(parsed))
-      state.serviceInstanceId = parsed.instanceId
     })
     initialEs.addEventListener('UPDATE', (payload) => {
       logEvent('Update: ' + JSON.stringify(payload.data))
