@@ -12,7 +12,7 @@
   </div>
 </template>
 <script setup>
-import { computed, ref, reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { EventSourcePolyfill } from 'event-source-polyfill'
 import { uniqueNamesGenerator, colors, adjectives, names } from 'unique-names-generator'
 
@@ -22,9 +22,6 @@ const config = {
   length: 3,
   style: 'capital'
 }
-
-class RetriableError extends Error {}
-class FatalError extends Error {}
 
 const API_BASE = '/api/sse'
 const logEvent = (message) => {
@@ -41,8 +38,7 @@ const state = reactive({
   count: 1,
   eventArray: [],
   leaveTitle: 'Leave chat',
-  reason: uniqueNamesGenerator(config),
-  retry: true
+  reason: uniqueNamesGenerator(config)
 })
 logEvent('Welcome to the machine!')
 const events = computed(() => {
@@ -58,59 +54,29 @@ watch(
   },
   { deep: true }
 )
-let controller = null
 let initialEs = null
+
+const handlers = {
+  open: () => logEvent('Joined'),
+  error: (event) => {
+    logEvent('Error... ' + JSON.stringify(event))
+    initialEs && initialEs.close()
+  },
+  message: (event) => logEvent('Message: ' + event.data),
+  UPDATE: (event) => logEvent('Update: ' + event.data),
+  COMPLETE: (event) => logEvent('Complete: ' + event.data),
+  HEARTBEAT: (event) => logEvent('Heartbeat: ' + event.data),
+  REGISTERED: (event) => logEvent('Registered: ' + event.data)
+}
 
 const register = () => {
   logEvent('Registering...')
-  state.retry = true
-  if (controller !== null) {
-    controller.abort()
-  }
-  controller = new AbortController()
   if (initialEs) {
     logEvent('Closing previous EventSource')
     initialEs.close()
   }
   initialEs = new EventSourcePolyfill(`${API_BASE}/register/?clientId=${state.clientId}`)
-  let listener = (event) => {
-    switch (event.type) {
-      case 'open':
-        if (state.retry) {
-          logEvent('Opened')
-        } else {
-          logEvent('Closing the event source')
-          initialEs.close()
-        }
-        break
-      case 'error':
-        if (event.status >= 500) {
-          logEvent('Error... ' + JSON.stringify(event))
-          initialEs.close()
-        }
-        break
-      case 'message':
-        logEvent(`Message: ${event.data}`)
-        break
-      default:
-        logEvent(`Unknown: ${JSON.stringify(event)}`)
-        break
-    }
-  }
-  initialEs.addEventListener('open', listener)
-  initialEs.addEventListener('message', listener)
-  initialEs.addEventListener('error', listener)
-  initialEs.addEventListener('REGISTERED', (payload) => {
-    let parsed = JSON.parse(payload.data)
-    logEvent('Client registered ' + JSON.stringify(parsed))
-  })
-  initialEs.addEventListener('UPDATE', (payload) => {
-    logEvent('Update: ' + JSON.stringify(payload.data))
-  })
-  initialEs.addEventListener('COMPLETE', () => {
-    logEvent('Client completed')
-    initialEs.close()
-  })
+  Object.keys(handlers).forEach((key) => initialEs.addEventListener(key, handlers[key]))
 }
 const send = () => {
   const payload = `${state.count++} ${state.reason}`
@@ -123,10 +89,9 @@ const send = () => {
 }
 const unregister = () => {
   logEvent('Unregistering...')
+  initialEs && initialEs.close()
   fetch(`${API_BASE}/unregister/?clientId=${state.clientId}`)
     .then(() => {
-      controller && controller.abort()
-      state.retry = false
       logEvent('... done')
     })
     .catch((error) => logEvent('Unregister failed: ' + JSON.stringify(error)))

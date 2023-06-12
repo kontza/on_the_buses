@@ -18,13 +18,12 @@ import java.util.concurrent.TimeUnit;
 @Component
 @Slf4j
 public class SseHandlerServiceImpl implements SseHandlerService {
+    public static final String EVENT_COMPLETE = "COMPLETE";
+    public static final String EVENT_HEARTBEAT = "HEARTBEAT";
     public static final String EVENT_REGISTERED = "REGISTERED";
     public static final String EVENT_UPDATE = "UPDATE";
-    public static final String EVENT_COMPLETE = "COMPLETE";
     public static final String OK = "OK";
     public static final long INFINITE_TIME = -1L;
-    public static final long HEARTBEAT_LIMIT = 15;
-    public static final String EVENT_HEARTBEAT = "HEARTBEAT";
     private final Map<String, SseEmitter> clients = new HashMap<>();
     private final NotifierService notifierService;
 
@@ -42,7 +41,7 @@ public class SseHandlerServiceImpl implements SseHandlerService {
     }
 
     private void sendHeartbeat() {
-        log.info(">>> Sending heartbeat");
+        log.info(">>> Sending heartbeat to {}", clients.keySet());
         clients.forEach((clientId, emitter) -> {
             try {
                 emitter.send(SseEmitter
