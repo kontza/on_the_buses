@@ -17,7 +17,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.kontza.on_the_buses.infrastructure.adapters.services.SSEHandlerServiceImpl.OK;
+import static org.kontza.on_the_buses.infrastructure.adapters.services.SseHandlerServiceImpl.OK;
 
 @Component
 @Slf4j

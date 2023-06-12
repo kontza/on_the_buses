@@ -2,7 +2,7 @@ package org.kontza.on_the_buses.infrastructure.adapters.services;
 
 import lombok.extern.slf4j.Slf4j;
 import org.kontza.on_the_buses.domain.api.NotifierService;
-import org.kontza.on_the_buses.domain.api.SSEHandlerService;
+import org.kontza.on_the_buses.domain.api.SseHandlerService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit;
 
 @Component
 @Slf4j
-public class SSEHandlerServiceImpl implements SSEHandlerService {
+public class SseHandlerServiceImpl implements SseHandlerService {
     public static final String EVENT_REGISTERED = "REGISTERED";
     public static final String EVENT_UPDATE = "UPDATE";
     public static final String EVENT_COMPLETE = "COMPLETE";
@@ -32,7 +32,7 @@ public class SSEHandlerServiceImpl implements SSEHandlerService {
     private long sseTimeout;
     private final ScheduledExecutorService executorService = Executors.newScheduledThreadPool(5);
 
-    public SSEHandlerServiceImpl(NotifierService notifierService) {
+    public SseHandlerServiceImpl(NotifierService notifierService) {
         this.notifierService = notifierService;
     }
 

@@ -14,7 +14,6 @@
 <script setup>
 import { computed, ref, reactive, watch } from 'vue'
 import { EventSourcePolyfill } from 'event-source-polyfill'
-import { fetchEventSource, EventStreamContentType } from '@microsoft/fetch-event-source'
 import { uniqueNamesGenerator, colors, adjectives, names } from 'unique-names-generator'
 
 const config = {
@@ -59,9 +58,6 @@ watch(
   },
   { deep: true }
 )
-const MS = 'MS'
-// const PF = 'polyfill'
-const mode = ref(MS)
 let controller = null
 let initialEs = null
 
@@ -72,122 +68,49 @@ const register = () => {
     controller.abort()
   }
   controller = new AbortController()
-  if (mode.value === MS) {
-    fetchEventSource(`${API_BASE}/register/?clientId=${state.clientId}`, {
-      signal: controller.signal,
-      openWhenHidden: true,
-      async onopen(response) {
-        if (response.ok && response.headers.get('content-type').startsWith('text/event-stream')) {
-          return // everything's good
-        } else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-          // client-side errors are usually non-retriable:
-          logEvent('Registration failed... ' + JSON.stringify(response))
-          throw new FatalError()
-        } else {
-          logEvent('Registration failed, can be retried... ' + JSON.stringify(response))
-          throw new RetriableError()
-        }
-      },
-      onmessage(msg) {
-        // if the server emits an error message, throw an exception
-        // so it gets handled by the onerror callback below:
-        if (msg.event === 'FatalError') {
-          logEvent('Message error: ' + JSON.stringify(msg))
-          throw new FatalError(msg.data)
-        } else {
-          let payload = msg.data ? JSON.parse(msg.data) : 'N/A'
-          switch (msg.event) {
-            case 'REGISTERED':
-              logEvent(`Client registered: ${JSON.stringify(msg)}`)
-              state.leaveTitle = payload.chair ? 'End chat' : 'Leave chat'
-              break
-            case 'UPDATE':
-              logEvent(`Update: ${payload}`)
-              break
-            case 'COMPLETE':
-              logEvent('Completed')
-              state.retry = false
-              break
-            case 'HEARTBEAT':
-              logEvent('Heartbeat received')
-              break
-            default:
-              logEvent('Message: ' + JSON.stringify(msg))
-              break
-          }
-        }
-      },
-      onclose() {
-        // if the server closes the connection unexpectedly, retry:
-        if (state.retry) {
-          logEvent('Server closed connection, retry')
-          throw new RetriableError()
-        } else {
-          logEvent('Close on completed')
-        }
-      },
-      onerror(err) {
-        if (err instanceof FatalError) {
-          // rethrow to prevent retry
-          logEvent('Non-retryable error: ' + JSON.stringify(err))
-          throw err
-        } else {
-          // return a retry interval
-          return 5000
-        }
-      }
-    })
-      .then((value) => {
-        logEvent(`Then: ${JSON.stringify(value)}`)
-      })
-      .catch((err) => {
-        logEvent(`Catch: ${err}`)
-      })
-  } else {
-    if (initialEs) {
-      logEvent('Closing previous EventSource')
-      initialEs.close()
-    }
-    initialEs = new EventSourcePolyfill(`${API_BASE}/register/?clientId=${state.clientId}`)
-    let listener = (event) => {
-      switch (event.type) {
-        case 'open':
-          if (state.retry) {
-            logEvent('Opened')
-          } else {
-            logEvent('Closing the event source')
-            initialEs.close()
-          }
-          break
-        case 'error':
-          if (event.status >= 500) {
-            logEvent('Error... ' + JSON.stringify(event))
-            initialEs.close()
-          }
-          break
-        case 'message':
-          logEvent(`Message: ${event.data}`)
-          break
-        default:
-          logEvent(`Unknown: ${JSON.stringify(event)}`)
-          break
-      }
-    }
-    initialEs.addEventListener('open', listener)
-    initialEs.addEventListener('message', listener)
-    initialEs.addEventListener('error', listener)
-    initialEs.addEventListener('REGISTERED', (payload) => {
-      let parsed = JSON.parse(payload.data)
-      logEvent('Client registered ' + JSON.stringify(parsed))
-    })
-    initialEs.addEventListener('UPDATE', (payload) => {
-      logEvent('Update: ' + JSON.stringify(payload.data))
-    })
-    initialEs.addEventListener('COMPLETE', () => {
-      logEvent('Client completed')
-      initialEs.close()
-    })
+  if (initialEs) {
+    logEvent('Closing previous EventSource')
+    initialEs.close()
   }
+  initialEs = new EventSourcePolyfill(`${API_BASE}/register/?clientId=${state.clientId}`)
+  let listener = (event) => {
+    switch (event.type) {
+      case 'open':
+        if (state.retry) {
+          logEvent('Opened')
+        } else {
+          logEvent('Closing the event source')
+          initialEs.close()
+        }
+        break
+      case 'error':
+        if (event.status >= 500) {
+          logEvent('Error... ' + JSON.stringify(event))
+          initialEs.close()
+        }
+        break
+      case 'message':
+        logEvent(`Message: ${event.data}`)
+        break
+      default:
+        logEvent(`Unknown: ${JSON.stringify(event)}`)
+        break
+    }
+  }
+  initialEs.addEventListener('open', listener)
+  initialEs.addEventListener('message', listener)
+  initialEs.addEventListener('error', listener)
+  initialEs.addEventListener('REGISTERED', (payload) => {
+    let parsed = JSON.parse(payload.data)
+    logEvent('Client registered ' + JSON.stringify(parsed))
+  })
+  initialEs.addEventListener('UPDATE', (payload) => {
+    logEvent('Update: ' + JSON.stringify(payload.data))
+  })
+  initialEs.addEventListener('COMPLETE', () => {
+    logEvent('Client completed')
+    initialEs.close()
+  })
 }
 const send = () => {
   const payload = `${state.count++} ${state.reason}`

@@ -1,7 +1,7 @@
 package org.kontza.on_the_buses.infrastructure.adapters.rest;
 
 import lombok.extern.slf4j.Slf4j;
-import org.kontza.on_the_buses.domain.api.SSEHandlerService;
+import org.kontza.on_the_buses.domain.api.SseHandlerService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,10 +16,10 @@ import java.io.IOException;
 @RestController
 @RequestMapping("/sse")
 @Slf4j
-public class SSEHandlerController {
-    private final SSEHandlerService sseHandlerService;
+public class SseHandlerController {
+    private final SseHandlerService sseHandlerService;
 
-    public SSEHandlerController(SSEHandlerService sseHandlerService) {
+    public SseHandlerController(SseHandlerService sseHandlerService) {
         this.sseHandlerService = sseHandlerService;
     }
 

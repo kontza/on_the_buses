@@ -4,7 +4,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 
-public interface SSEHandlerService {
+public interface SseHandlerService {
     String unregisterClient(final String clientId) throws IOException;
 
     SseEmitter registerClient(final String clientId) throws IOException;
