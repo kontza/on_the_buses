@@ -48,7 +48,7 @@ public class SSEHandlerServiceImpl implements SSEHandlerService {
                 emitter.send(SseEmitter
                     .event()
                     .id(String.valueOf(System.currentTimeMillis()))
-                    .comment(EVENT_HEARTBEAT));
+                    .name(EVENT_HEARTBEAT));
             } catch (IOException e) {
                 log.error(">>> Failed to send heartbeat to '{}', cleaning it away", clientId, e);
                 tryRemoveClient(clientId);
@@ -76,8 +76,7 @@ public class SSEHandlerServiceImpl implements SSEHandlerService {
             emitter.send(SseEmitter
                 .event()
                 .id(String.valueOf(System.currentTimeMillis()))
-                .name(EVENT_COMPLETE)
-                .data(""));
+                .name(EVENT_COMPLETE));
             tryRemoveClient(clientId);
         } else {
             log.warn(">>> '{}' not a registered client", clientId);
@@ -107,8 +106,7 @@ public class SSEHandlerServiceImpl implements SSEHandlerService {
             emitter.send(SseEmitter
                 .event()
                 .id(String.valueOf(System.currentTimeMillis()))
-                .name(EVENT_REGISTERED)
-                .data(""));
+                .name(EVENT_REGISTERED));
         } catch (IOException e) {
             log.error(">>> Failed to ACK registration for '{}'", clientId);
             throw e;
@@ -118,7 +116,7 @@ public class SSEHandlerServiceImpl implements SSEHandlerService {
 
     @Override
     public void update(final String reason, boolean propagate) {
-        log.info(">>> Got an update request '{}', should propagate? {}", reason, propagate);
+        log.info(">>> Got an update request '{}', should propagate? {}. Clients: {}", reason, propagate, clients.keySet());
         clients.forEach((clientId, sseEmitter) -> {
             try {
                 log.info(">>> Notifying '{}'", clientId);

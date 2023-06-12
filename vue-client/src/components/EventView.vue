@@ -43,7 +43,7 @@ const state = reactive({
   eventArray: [],
   leaveTitle: 'Leave chat',
   reason: uniqueNamesGenerator(config),
-  retry: true,
+  retry: true
 })
 logEvent('Welcome to the machine!')
 const events = computed(() => {
@@ -60,18 +60,24 @@ watch(
   { deep: true }
 )
 const MS = 'MS'
-const PF = 'polyfill'
-const mode = ref(PF)
+// const PF = 'polyfill'
+const mode = ref(MS)
+let controller = null
 let initialEs = null
 
 const register = () => {
   logEvent('Registering...')
   state.retry = true
+  if (controller !== null) {
+    controller.abort()
+  }
+  controller = new AbortController()
   if (mode.value === MS) {
     fetchEventSource(`${API_BASE}/register/?clientId=${state.clientId}`, {
+      signal: controller.signal,
       openWhenHidden: true,
       async onopen(response) {
-        if (response.ok && response.headers.get('content-type') === EventStreamContentType) {
+        if (response.ok && response.headers.get('content-type').startsWith('text/event-stream')) {
           return // everything's good
         } else if (response.status >= 400 && response.status < 500 && response.status !== 429) {
           // client-side errors are usually non-retriable:
@@ -92,7 +98,7 @@ const register = () => {
           let payload = msg.data ? JSON.parse(msg.data) : 'N/A'
           switch (msg.event) {
             case 'REGISTERED':
-              logEvent(`Client registered`)
+              logEvent(`Client registered: ${JSON.stringify(msg)}`)
               state.leaveTitle = payload.chair ? 'End chat' : 'Leave chat'
               break
             case 'UPDATE':
@@ -102,8 +108,11 @@ const register = () => {
               logEvent('Completed')
               state.retry = false
               break
+            case 'HEARTBEAT':
+              logEvent('Heartbeat received')
+              break
             default:
-              logEvent('Message: ' + msg)
+              logEvent('Message: ' + JSON.stringify(msg))
               break
           }
         }
@@ -119,15 +128,21 @@ const register = () => {
       },
       onerror(err) {
         if (err instanceof FatalError) {
+          // rethrow to prevent retry
           logEvent('Non-retryable error: ' + JSON.stringify(err))
-          throw err // rethrow to stop the operation
+          throw err
         } else {
-          // do nothing to automatically retry. You can also
-          // return a specific retry interval here.
-          logEvent('Retryable error: ' + JSON.stringify(err))
+          // return a retry interval
+          return 5000
         }
       }
     })
+      .then((value) => {
+        logEvent(`Then: ${JSON.stringify(value)}`)
+      })
+      .catch((err) => {
+        logEvent(`Catch: ${err}`)
+      })
   } else {
     if (initialEs) {
       logEvent('Closing previous EventSource')
@@ -187,6 +202,7 @@ const unregister = () => {
   logEvent('Unregistering...')
   fetch(`${API_BASE}/unregister/?clientId=${state.clientId}`)
     .then(() => {
+      controller && controller.abort()
       state.retry = false
       logEvent('... done')
     })
