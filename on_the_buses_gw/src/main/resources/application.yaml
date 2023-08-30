@@ -1,11 +1,14 @@
 server:
   port: 2110
+
 spring:
   application:
     name: on-the-buses-gw
   cloud:
     consul:
+      token: 4daf4ec2-03ea-c0b7-e5aa-e2530e9fe75e
       enabled: true
+      port: 18500
     gateway:
       discovery:
         locator:
