@@ -7,7 +7,6 @@
         <version>3.0.0</version>
         <relativePath>..</relativePath>
     </parent>
-    <groupId>org.kontza</groupId>
     <artifactId>on_the_buses_gw</artifactId>
     <version>2.0.0</version>
     <name>on_the_buses_gw</name>
@@ -35,17 +34,6 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-dependencies</artifactId>
-                <version>${spring-cloud.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
     <build>
         <plugins>
             <plugin>

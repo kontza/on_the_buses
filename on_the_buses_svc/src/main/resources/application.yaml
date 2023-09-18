@@ -5,6 +5,8 @@ spring:
     name: on-the-buses-svc
   cloud:
     consul:
+      token: 88fe37aa-6e80-1ab3-a424-b8f6dc93e29a
       enabled: true
+      port: 18500
 on-the-buses-svc:
   sse-timeout: 5000

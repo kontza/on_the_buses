@@ -75,10 +75,10 @@ public class NotifierServiceImpl implements NotifierService {
             }
         });
         log.info(">>> Waiting...");
-        var merge = Flux.merge(responses).timeout(Duration.ofMillis(timeout));
+        var merge = Flux.merge(responses);
         merge.doOnComplete(() -> log.info(">>> notify call onComplete"))
             .doOnError(e -> log.error(">>> notify call onError", e))
-            .blockLast();
+            .subscribe();
         return OK;
     }
 }

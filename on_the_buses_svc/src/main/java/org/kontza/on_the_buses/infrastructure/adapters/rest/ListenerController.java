@@ -22,7 +22,8 @@ public class ListenerController {
 
     @PostMapping()
     @ResponseStatus(HttpStatus.OK)
-    public void listener(@RequestBody LightEvent le) {
+    public void listener(@RequestBody LightEvent le) throws InterruptedException {
+        Thread.sleep(5000);
         sseHandlerService.update(le.getReason(), false);
     }
 }
