@@ -45,9 +45,9 @@ public class SseHandlerServiceImpl implements SseHandlerService {
         clients.forEach((clientId, emitter) -> {
             try {
                 emitter.send(SseEmitter
-                    .event()
-                    .id(String.valueOf(System.currentTimeMillis()))
-                    .name(EVENT_HEARTBEAT));
+                        .event()
+                        .id(String.valueOf(System.currentTimeMillis()))
+                        .name(EVENT_HEARTBEAT));
             } catch (IOException e) {
                 log.error(">>> Failed to send heartbeat to '{}', cleaning it away", clientId, e);
                 tryRemoveClient(clientId);
@@ -73,9 +73,9 @@ public class SseHandlerServiceImpl implements SseHandlerService {
         if (clients.containsKey(clientId)) {
             var emitter = clients.get(clientId);
             emitter.send(SseEmitter
-                .event()
-                .id(String.valueOf(System.currentTimeMillis()))
-                .name(EVENT_COMPLETE));
+                    .event()
+                    .id(String.valueOf(System.currentTimeMillis()))
+                    .name(EVENT_COMPLETE));
             tryRemoveClient(clientId);
         } else {
             log.warn(">>> '{}' not a registered client", clientId);
@@ -103,9 +103,9 @@ public class SseHandlerServiceImpl implements SseHandlerService {
         log.info(">>> Registered '{}'", clientId);
         try {
             emitter.send(SseEmitter
-                .event()
-                .id(String.valueOf(System.currentTimeMillis()))
-                .name(EVENT_REGISTERED));
+                    .event()
+                    .id(String.valueOf(System.currentTimeMillis()))
+                    .name(EVENT_REGISTERED));
         } catch (IOException e) {
             log.error(">>> Failed to ACK registration for '{}'", clientId);
             throw e;
@@ -120,10 +120,10 @@ public class SseHandlerServiceImpl implements SseHandlerService {
             try {
                 log.info(">>> Notifying '{}'", clientId);
                 sseEmitter.send(SseEmitter
-                    .event()
-                    .id(String.valueOf(System.currentTimeMillis()))
-                    .name(EVENT_UPDATE)
-                    .data(reason));
+                        .event()
+                        .id(String.valueOf(System.currentTimeMillis()))
+                        .name(EVENT_UPDATE)
+                        .data(reason));
             } catch (IOException e) {
                 log.error(">>> Sending '{}' to '{}' failed:", reason, clientId, e);
                 tryRemoveClient(clientId);
