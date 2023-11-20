@@ -6,9 +6,9 @@ spring:
     name: on-the-buses-gw
   cloud:
     consul:
-      token: 88fe37aa-6e80-1ab3-a424-b8f6dc93e29a
+      token: 89216c93-526e-13f5-293a-e51a7034bb46
       enabled: true
-      port: 18500
+      port: 8500
     gateway:
       discovery:
         locator:

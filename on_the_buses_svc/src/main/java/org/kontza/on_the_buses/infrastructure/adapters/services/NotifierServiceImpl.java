@@ -13,17 +13,17 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.kontza.on_the_buses.infrastructure.adapters.services.SseHandlerServiceImpl.OK;
+import static org.kontza.on_the_buses.infrastructure.adapters.services.TrackingHandlerServiceImpl.OK;
 
 @Component
 @Slf4j
 public class NotifierServiceImpl implements NotifierService {
     public static final String DEFAULT_MESSAGE = "TRIGGERED!";
     public static final String S_AMACCOUNT_NAME = "v:AD_DOMAIN\\sAMAccountName";
+    public static final long SOME_ID = 42L;
     private static final Long DEFAULT_TIMEOUT = 1000L;
     private final DiscoveryClient discoveryClient;
     private final Registration registration;
@@ -33,19 +33,19 @@ public class NotifierServiceImpl implements NotifierService {
         this.discoveryClient = discoveryClient;
         this.registration = registration;
         webClient = WebClient
-            .builder()
-            .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-            .build();
+                .builder()
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .build();
     }
 
     private Mono<Void> notify(ServiceInstance serviceInstance, LightEvent le) {
         log.info(">>> Calling {}/listener with {}", serviceInstance.getUri(), le);
         return webClient
-            .post()
-            .uri(serviceInstance.getUri() + "/listener")
-            .body(Mono.just(le), LightEvent.class)
-            .retrieve()
-            .bodyToMono(Void.class);
+                .post()
+                .uri(serviceInstance.getUri() + "/listener")
+                .body(Mono.just(le), LightEvent.class)
+                .retrieve()
+                .bodyToMono(Void.class);
     }
 
     @Override
@@ -58,16 +58,16 @@ public class NotifierServiceImpl implements NotifierService {
         }
         log.info(">>> Using a timeout value of {}", timeout);
         var le = new LightEvent(
-            message,
-            42l,
-            S_AMACCOUNT_NAME
+                message,
+                SOME_ID,
+                S_AMACCOUNT_NAME
         );
         var instances = discoveryClient.getInstances(registration.getServiceId());
         List<Mono<Void>> responses = new ArrayList<>();
         log.info(">>> Self: {}", registration.getUri());
         instances.forEach(serviceInstance -> {
             if ((serviceInstance.getHost().equals(registration.getHost()))
-                && (serviceInstance.getPort() == registration.getPort())) {
+                    && (serviceInstance.getPort() == registration.getPort())) {
                 log.info(">>> Not going to notify self.");
             } else {
                 log.info(">>> Other: {}", serviceInstance.getUri());
@@ -77,8 +77,8 @@ public class NotifierServiceImpl implements NotifierService {
         log.info(">>> Waiting...");
         var merge = Flux.merge(responses);
         merge.doOnComplete(() -> log.info(">>> notify call onComplete"))
-            .doOnError(e -> log.error(">>> notify call onError", e))
-            .subscribe();
+                .doOnError(e -> log.error(">>> notify call onError", e))
+                .subscribe();
         return OK;
     }
 }

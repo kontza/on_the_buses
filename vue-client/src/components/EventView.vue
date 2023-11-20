@@ -13,9 +13,13 @@
 </template>
 <script setup>
 import { computed, reactive, watch } from 'vue'
-import { EventSourcePolyfill } from 'event-source-polyfill'
 import { uniqueNamesGenerator, colors, adjectives, names } from 'unique-names-generator'
+import axios from 'axios'
+import { CanceledError } from 'axios'
 
+const axe = axios.create({
+  baseURL: 'http://localhost:4040/'
+})
 const config = {
   dictionaries: [adjectives, colors, names],
   separator: ' ',
@@ -23,7 +27,7 @@ const config = {
   style: 'capital'
 }
 
-const API_BASE = '/api/sse'
+const API_BASE = '/api/track'
 const logEvent = (message) => {
   const timestamp = new Date().toLocaleTimeString('fi', {
     hour: 'numeric',
@@ -54,47 +58,71 @@ watch(
   },
   { deep: true }
 )
-let initialEs = null
 
-const handlers = {
-  open: () => logEvent('Joined'),
-  error: (event) => {
-    logEvent('Error... ' + JSON.stringify(event))
-    initialEs && initialEs.close()
-  },
-  message: (event) => logEvent('Message: ' + event.data),
-  UPDATE: (event) => logEvent('Update: ' + event.data),
-  COMPLETE: (event) => logEvent('Complete: ' + event.data),
-  HEARTBEAT: (event) => logEvent('Heartbeat: ' + event.data),
-  REGISTERED: (event) => logEvent('Registered: ' + event.data)
-}
-
+let abortController = null
 const register = () => {
   logEvent('Registering...')
-  if (initialEs) {
-    logEvent('Closing previous EventSource')
-    initialEs.close()
+  if (abortController) {
+    logEvent('Closing previous registering')
+    abortController.abort()
   }
-  initialEs = new EventSourcePolyfill(`${API_BASE}/register/?clientId=${state.clientId}`)
-  Object.keys(handlers).forEach((key) => initialEs.addEventListener(key, handlers[key]))
+  abortController = new AbortController()
+  axe
+    .get(`${API_BASE}/register/?clientId=${state.clientId}`, {
+      signal: abortController.signal
+    })
+    .then((data) => data.data)
+    .then((data) => {
+      let reboot = true
+      if (data.reason === 'TIMEOUT') {
+        logEvent('Timeout; re-register')
+      } else if (data.reason === 'UNREGISTER') {
+        logEvent('Unregistered, not going to re-register')
+        reboot = false
+      } else {
+        if (data.reason !== 'ERROR') {
+          logEvent('Register request completed: ' + JSON.stringify(data.reason))
+        } else {
+          logEvent('Error occurred: ' + JSON.stringify(data))
+        }
+      }
+      if (reboot) {
+        setTimeout(register, 0)
+      }
+    })
+    .catch((error) => {
+      console.error(error)
+      if (error instanceof CanceledError) {
+        logEvent('Register request canceled')
+      } else {
+        logEvent('Register failed: ' + error)
+      }
+    })
 }
 const send = () => {
   const payload = `${state.count++} ${state.reason}`
   logEvent(`Sending '${payload}'...`)
-  fetch(`${API_BASE}/update/?reason=${payload}`, { method: 'GET' })
-    .then(() => logEvent('... sent'))
+  axe
+    .get(`${API_BASE}/update/?reason=${payload}`)
+    .then((data) => logEvent('... sent ' + JSON.stringify(data)))
     .catch((error) => {
       logEvent('Update failed: ' + JSON.stringify(error))
     })
 }
 const unregister = () => {
   logEvent('Unregistering...')
-  initialEs && initialEs.close()
-  fetch(`${API_BASE}/unregister/?clientId=${state.clientId}`)
+  abortController && abortController.abort()
+  logEvent('... abort signalled...')
+  axe
+    .get(`${API_BASE}/unregister/?clientId=${state.clientId}`)
     .then(() => {
-      logEvent('... done')
+      logEvent('... unregister done')
     })
-    .catch((error) => logEvent('Unregister failed: ' + JSON.stringify(error)))
+    .catch((error) => {
+      logEvent('... unregister failed: ' + JSON.stringify(error))
+    })
+  logEvent('... unregistered')
+  abortController = null
 }
 </script>
 <style scoped>
