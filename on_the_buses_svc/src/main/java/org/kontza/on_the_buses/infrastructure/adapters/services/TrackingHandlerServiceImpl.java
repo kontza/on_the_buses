@@ -21,7 +21,7 @@ public class TrackingHandlerServiceImpl implements TrackingHandlerService {
     public static final String EVENT_ERROR = "ERROR";
     private static final String EVENT_UNREGISTER = "UNREGISTER";
     public static final String OK = "OK";
-    private static final Long WAIT_TIMEOUT = 5000L;
+    private static final Long WAIT_TIMEOUT = 105000L;
     private final Map<String, DeferredResult<LightEvent>> clients = new HashMap<>();
     private final NotifierService notifierService;
 
@@ -67,6 +67,7 @@ public class TrackingHandlerServiceImpl implements TrackingHandlerService {
         });
         if (clients.containsKey(clientId)) {
             log.info(">>> '{}' was already registered.", clientId);
+            clients.get(clientId).setResult(new LightEvent("EVENT_REREGISTERED", SOME_ID, S_AMACCOUNT_NAME));
         }
         deferred.onTimeout(() -> {
             log.warn(">>> '{}' deferred result timed out", clientId);
