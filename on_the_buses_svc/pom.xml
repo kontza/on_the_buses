@@ -4,7 +4,7 @@
     <parent>
         <groupId>org.kontza</groupId>
         <artifactId>on-the-buses</artifactId>
-        <version>3.0.0</version>
+        <version>${revision}</version>
         <relativePath>..</relativePath>
     </parent>
     <groupId>org.kontza</groupId>
